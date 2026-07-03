@@ -16,7 +16,7 @@ import (
 type RegisterRequest struct {
 	Username  string  `json:"username"`
 	Email     string  `json:"email"`
-	Password  string  `json:"password_hash"` // maps to password_hash from frontend
+	Password  string  `json:"password"`
 	Role      string  `json:"role"`
 	AvatarURL *string `json:"avatar_url"`
 }

@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"strings"
 	"time"
 
 	"eventbe/app/repository"
@@ -56,15 +57,15 @@ func create(c *fiber.Ctx, save func(map[string]any) (map[string]any, error), mes
 }
 
 func update(c *fiber.Ctx, save func(string, map[string]any) (map[string]any, error), message, notFoundMessage string) error {
+	input, err := parseInput(c)
+	if err != nil {
+		return helper.BadRequest(c, "Invalid input payload")
+	}
 	id := c.Params("id")
 	if id == "" {
 		return helper.BadRequest(c, "ID is required")
 	}
 
-	input, err := parseInput(c)
-	if err != nil {
-		return helper.BadRequest(c, "Invalid input payload")
-	}
 	delete(input, "id")
 
 	data, err := save(id, input)
@@ -97,7 +98,38 @@ func parseInput(c *fiber.Ctx) (map[string]any, error) {
 		input = map[string]any{}
 	}
 
+	// Format ISO 8601 date strings to MySQL format
+	autoFormatISODates(input)
+
 	return input, nil
+}
+
+func autoFormatISODates(input map[string]any) {
+	layouts := []string{
+		"2006-01-02T15:04:05.000Z",
+		"2006-01-02T15:04:05.000Z07:00",
+		time.RFC3339,
+		time.RFC3339Nano,
+		"2006-01-02T15:04:05",
+	}
+
+	for k, v := range input {
+		str, ok := v.(string)
+		if !ok || str == "" {
+			continue
+		}
+
+		if !strings.Contains(str, "T") {
+			continue
+		}
+
+		for _, layout := range layouts {
+			if t, err := time.Parse(layout, str); err == nil {
+				input[k] = t.Format("2006-01-02 15:04:05")
+				break
+			}
+		}
+	}
 }
 
 func setDefaultTimestamp(input map[string]any, field string, value time.Time) {
